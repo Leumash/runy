@@ -1,0 +1,143 @@
+#!/usr/bin/bash
+
+function usage()
+{
+    echo "Running the script $(basename $0) will look in the current directory for a valid filename with a proper extension. It will then compile and execute the script."
+}
+
+function ParseArguments
+{
+    while getopts ":h" arg; do
+        case "${arg}" in
+            h)
+                usage
+                exit 0
+                ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+    done
+}
+
+function GetFileNames()
+{
+    fileNames=($(ls))
+    if [ ${#fileNames[@]} -eq 0 ]; then
+        return 1
+    else
+        return 0
+    fi
+
+}
+
+function GetFileExtension()
+{
+    local __result=$1
+    eval $__result="${2##*.}"
+}
+
+function IsValidFileExtension()
+{
+    case "$1" in
+        "cc" | "cpp" | "c")
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+function GetFileName()
+{
+    local __result=$1
+    eval $__result="${2%.*}"
+}
+
+function FindValidFileName()
+{
+    local __result=$1
+    local myResult=""
+
+    for fileName in "${fileNames[@]}"
+    do
+        :
+            GetFileExtension extension $fileName
+            IsValidFileExtension $extension
+            if [ $? -eq 0 ]; then
+                myResult=$fileName
+                break
+            fi
+    done
+
+    eval $__result=$myResult
+}
+
+function CompileFile
+{
+    local __result=$2
+
+    GetFileName fileName $1
+
+    echo "g++ -std=c++11 $1 -o $fileName"
+    g++ -std=c++11 $1 -o $fileName
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    eval $__result=$fileName
+}
+
+function MakeFile()
+{
+    echo "Going to make: $1" 
+    make $1
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+}
+
+function ExecuteFile()
+{
+    ./$1
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+}
+
+function main()
+{
+    ParseArguments $@
+
+    # Step 1
+    GetFileNames
+    if [ $? -ne 0 ]; then
+        echo "Failed to find any file names in the directory $(pwd)"
+        echo "Usage: $(basename $0) -h"
+        exit 1
+    fi
+
+    # Step 2
+    FindValidFileName validFileName
+    if [[ -z "$validFileName" ]]; then
+        echo "Failed to find a valid file name in: "$(ls)
+        echo "Usage: $(basename $0) -h"
+        exit 1
+    fi
+
+    # Step 3
+    CompileFile $validFileName outputFileName
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    # Step 4
+    ExecuteFile $outputFileName
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+}
+
+main $@

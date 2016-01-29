@@ -1,0 +1,6 @@
+**/*~
+**/*.bak
+**/*.sw[abcdefghijklmnop]
+*.exe
+*.stackdump
+*~
