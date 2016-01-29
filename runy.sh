@@ -111,7 +111,6 @@ function main()
 {
     ParseArguments $@
 
-    # Step 1
     GetFileNames
     if [ $? -ne 0 ]; then
         echo "Failed to find any file names in the directory $(pwd)"
@@ -119,7 +118,6 @@ function main()
         exit 1
     fi
 
-    # Step 2
     FindValidFileName validFileName
     if [[ -z "$validFileName" ]]; then
         echo "Failed to find a valid file name in: "$(ls)
@@ -127,13 +125,11 @@ function main()
         exit 1
     fi
 
-    # Step 3
     CompileFile $validFileName outputFileName
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    # Step 4
     ExecuteFile $outputFileName
     if [ $? -ne 0 ]; then
         exit 1
