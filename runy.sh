@@ -2,16 +2,22 @@
 
 function usage()
 {
-    echo "Running the script $(basename $0) will look in the current directory for a valid filename with a proper extension. It will then compile and execute the script."
+    echo "Running the script $(basename $0) will look in the current directory for a valid filename with a proper extension. It will then compile and execute the file."
+    echo ""
+    echo "    -i filename"
+    echo "        Redirects input from filename to execution of the file."
 }
 
 function ParseArguments
 {
-    while getopts ":h" arg; do
+    while getopts ":hi:" arg; do
         case "${arg}" in
             h)
                 usage
                 exit 0
+                ;;
+            i)
+                inputFilename=${OPTARG}
                 ;;
             *)
                 usage
@@ -101,9 +107,16 @@ function MakeFile()
 
 function ExecuteFile()
 {
-    ./$1
-    if [ $? -ne 0 ]; then
-        return 1
+    if [[ ! -z $inputFilename ]]; then
+        ./$1 < "$inputFilename"
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+    else
+        ./$1
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
     fi
 }
 
