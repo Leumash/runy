@@ -116,9 +116,9 @@ function CompileFile
         fi
     fi
 
-    # TODO make a string then execute that string
-    echo "g++ -std=c++11 $1 -o $fileName"
-    g++ -std=c++11 $1 -o $fileName
+    toExecute="g++ -std=c++11 $1 -o $fileName"
+    echo $toExecute
+    $toExecute
     if [ $? -ne 0 ]; then
         return 1
     fi
