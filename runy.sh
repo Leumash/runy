@@ -81,19 +81,47 @@ function FindValidFileName()
     eval $__result=$myResult
 }
 
+function GetModifyDate
+{
+    local __result=$1
+    modifyDate=$(stat -c %Y $2)
+    modifyDate=${modifyDate%% *}
+    eval $__result=$modifyDate
+}
+
+function DoesFileExist
+{
+    if [ -f $1 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function CompileFile
 {
     local __result=$2
 
     GetFileName fileName $1
 
+    eval $__result=$fileName
+
+    DoesFileExist $fileName
+    if [ $? -eq 0 ]; then
+        GetModifyDate executableModifyDate $fileName
+        GetModifyDate fileModifyDate $1
+        if [ $executableModifyDate -gt $fileModifyDate ]; then
+            echo "$(basename $0 .sh): '$fileName' is up to date."
+            return 0
+        fi
+    fi
+
+    # TODO make a string then execute that string
     echo "g++ -std=c++11 $1 -o $fileName"
     g++ -std=c++11 $1 -o $fileName
     if [ $? -ne 0 ]; then
         return 1
     fi
-
-    eval $__result=$fileName
 }
 
 function MakeFile()
