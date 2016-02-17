@@ -2,29 +2,102 @@
 
 function usage()
 {
-    echo "Running the script $(basename $0) will look in the current directory for a valid filename with a proper extension. It will then compile and execute the file."
-    echo ""
-    echo "    -i filename"
-    echo "        Redirects input from filename to execution of the file."
+    bold=$(tput bold)
+    underline=$(tput smul)
+    endUnderline=$(tput rmul)
+    normal=$(tput sgr0)
+
+    echo -e "\n${bold}USAGE:${normal}\n\t$(basename $0 .sh) [${bold}OPTIONS${normal}]\n"
+    echo -e "${bold}DESCRIPTION:${normal}\n\tRunning the script ${bold}$(basename $0)${normal} will look in the current directory for a valid filename with a proper extension. It will then compile and execute the file.\n"
+    echo -e "${bold}OPTIONS:${normal}\n"
+    echo -e "\t${bold}-i${normal} ${underline}FILE${endUnderline}"
+    echo -e "\t\tRedirects input from ${underline}FILE${endUnderline} to execution of the file.\n"
+    echo -e "\t${bold}-O${normal} ${underline}NUM${endUnderline}"
+    echo -e "\t\tSpecifies the optimization level.\n"
+    echo -e "\t${bold}-t${normal} ${underline}NUM${endUnderline}"
+    echo -e "\t\tRuns the program ${underline}NUM${endUnderline} times.\n"
 }
 
 function ParseArguments
 {
-    while getopts ":hi:" arg; do
+    while getopts ":hi:t:O:" arg; do
         case "${arg}" in
+            i)
+                inputFilename=${OPTARG}
+                ;;
+            t)
+                timeIterationCount=${OPTARG}
+                ;;
+            O)
+                optimizationLevel=${OPTARG}
+                ;;
             h)
                 usage
                 exit 0
                 ;;
-            i)
-                inputFilename=${OPTARG}
-                ;;
-            *)
-                usage
+            :)
+                case "${OPTARG}" in
+                    t)
+                        timeIterationCount=1
+                        ;;
+                    *)
+                        echo "$(basename $0 .sh): option requires an argument -- ${OPTARG}"
+                        exit 1
+                        ;;
+                esac ;;
+            \?)
+                echo "$(basename $0 .sh): unknown option -- ${OPTARG}"
                 exit 1
                 ;;
         esac
     done
+
+    ValidateCommandLineArguments
+}
+
+function ValidateCommandLineArguments
+{
+    if [ ! -z $inputFilename ]; then
+        DoesFileExist $inputFilename
+        if [ $? -eq 1 ]; then
+            echo "$(basename $0 .sh): file does not exist -- $inputFilename"
+            exit 1
+        fi
+    fi
+
+    if [ ! -z $timeIterationCount ]; then
+        IsValidTimeIterationCount $timeIterationCount
+        if [ $? -eq 1 ]; then
+            echo "$(basename $0 .sh): invalid option -- $timeIterationCount"
+            exit 1
+        fi
+    fi
+
+    if [ ! -z $optimizationLevel ]; then
+        IsValidOptimizationLevel $optimizationLevel
+        if [ $? -eq 1 ]; then
+            echo "$(basename $0 .sh): invalid optimization level -- $optimizationLevel"
+            exit 1
+        fi
+    fi
+}
+
+function IsValidOptimizationLevel
+{
+    if [[ $1 -ge 0 ]] && [[ $1 -le 3 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function IsValidTimeIterationCount
+{
+    if [[ $1 =~ ^[-+]?[0-9]+$ ]] && [ $1 -gt 0 ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 function GetFileNames()
@@ -98,6 +171,21 @@ function DoesFileExist
     fi
 }
 
+function ShouldCompileFile
+{
+    DoesFileExist $2
+    if [ $? -eq 0 ]; then
+        GetModifyDate executableModifyDate $2
+        GetModifyDate fileModifyDate $1
+
+        if [ $executableModifyDate -gt $fileModifyDate ]; then
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 function CompileFile
 {
     local __result=$2
@@ -106,28 +194,20 @@ function CompileFile
 
     eval $__result=$fileName
 
-    DoesFileExist $fileName
-    if [ $? -eq 0 ]; then
-        GetModifyDate executableModifyDate $fileName
-        GetModifyDate fileModifyDate $1
-        if [ $executableModifyDate -gt $fileModifyDate ]; then
-            echo "$(basename $0 .sh): '$fileName' is up to date."
-            return 0
-        fi
+    ShouldCompileFile $1 $fileName
+    if [ $? -eq 1 ]; then
+        echo "$(basename $0 .sh): '$fileName' is up to date."
+        return 0
     fi
 
-    toExecute="g++ -std=c++11 $1 -o $fileName"
-    echo $toExecute
-    $toExecute
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
-}
+    toCompile="g++ -std=c++11 $1 -o $fileName"
 
-function MakeFile()
-{
-    echo "Going to make: $1" 
-    make $1
+    if [[ ! -z $optimizationLevel ]]; then
+        toCompile="$toCompile -O$optimizationLevel"
+    fi
+
+    echo $toCompile
+    eval $toCompile
     if [ $? -ne 0 ]; then
         return 1
     fi
@@ -135,17 +215,22 @@ function MakeFile()
 
 function ExecuteFile()
 {
+    toExecute="./$1"
+
     if [[ ! -z $inputFilename ]]; then
-        ./$1 < "$inputFilename"
-        if [ $? -ne 0 ]; then
-            return 1
-        fi
-    else
-        ./$1
-        if [ $? -ne 0 ]; then
-            return 1
-        fi
+        toExecute="$toExecute < $inputFilename"
     fi
+
+    if [[ ! -z $timeIterationCount ]]; then
+        toExecute="for i in {1..$timeIterationCount}; do time $toExecute; done"
+    fi
+
+    eval $toExecute
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    return 0
 }
 
 function main()
