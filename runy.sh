@@ -85,6 +85,8 @@ function ValidateCommandLineArguments
             exit 1
         fi
     fi
+
+# TODO : -g flag should be incompatible with -O and -t flags so display an error and exit
 }
 
 function IsValidOptimizationLevel
@@ -232,6 +234,10 @@ function ExecuteFile()
 
     if [[ ! -z $timeIterationCount ]]; then
         toExecute="for i in {1..$timeIterationCount}; do time $toExecute; done"
+    fi
+
+    if [[ ! -z $debuggerFlag ]]; then
+        toExecute="gdb $toExecute"
     fi
 
     eval $toExecute
