@@ -10,6 +10,8 @@ function usage()
     echo -e "\n${bold}USAGE:${normal}\n\t$(basename $0 .sh) [${bold}OPTIONS${normal}]\n"
     echo -e "${bold}DESCRIPTION:${normal}\n\tRunning the script ${bold}$(basename $0)${normal} will look in the current directory for a valid filename with a proper extension. It will then compile and execute the file.\n"
     echo -e "${bold}OPTIONS:${normal}\n"
+    echo -e "\t${bold}-g${normal}"
+    echo -e "\t\tAdds the debugger flag for compilation.\n"
     echo -e "\t${bold}-i${normal} ${underline}FILE${endUnderline}"
     echo -e "\t\tRedirects input from ${underline}FILE${endUnderline} to execution of the file.\n"
     echo -e "\t${bold}-O${normal} ${underline}NUM${endUnderline}"
@@ -20,7 +22,7 @@ function usage()
 
 function ParseArguments
 {
-    while getopts ":hi:t:O:" arg; do
+    while getopts ":hi:t:O:g" arg; do
         case "${arg}" in
             i)
                 inputFilename=${OPTARG}
@@ -34,6 +36,9 @@ function ParseArguments
             h)
                 usage
                 exit 0
+                ;;
+            g)
+                debuggerFlag=0
                 ;;
             :)
                 case "${OPTARG}" in
@@ -204,6 +209,10 @@ function CompileFile
 
     if [[ ! -z $optimizationLevel ]]; then
         toCompile="$toCompile -O$optimizationLevel"
+    fi
+
+    if [[ ! -z $debuggerFlag ]]; then
+        toCompile="$toCompile -g"
     fi
 
     echo $toCompile
