@@ -207,7 +207,7 @@ function CompileFile
         return 0
     fi
 
-    toCompile="g++ -std=c++11 $1 -o $fileName"
+    toCompile="g++ -std=c++11 $1 -o $fileName -Wall"
 
     if [[ ! -z $optimizationLevel ]]; then
         toCompile="$toCompile -O$optimizationLevel"
